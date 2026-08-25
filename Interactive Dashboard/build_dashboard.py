@@ -509,7 +509,7 @@ img.terrain { max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
 """
 
 
-def build_page(fig1, fig2, fig3, fig4, fig5, terrain_b64, elev_min, elev_max):
+def build_page(leaflet_section, fig2, fig3, fig4, fig5, terrain_b64, elev_min, elev_max):
     def div(fig, div_id, include_js=False):
         return pio.to_html(fig, include_plotlyjs=("cdn" if include_js else False),
                             full_html=False, div_id=div_id)
@@ -533,24 +533,28 @@ computed live from population, area, and school count data already verified in t
 not illustrative or synthetic data.
 </p>
 
-<h2>1. Composite accessibility map</h2>
+<h2>1. Interactive accessibility map</h2>
 <p>
-Click a weighting scenario above the map to see how the priority ranking changes depending on
-how much weight is given to population pressure versus raw school density. The AHP judgement
-adopted in the model, moderately more weight on population, is selected by default. The map also
-plots every real school in the district, taken from the REB facility register, click the school
-markers in the legend to show or hide them.
+Switch the basemap at the top of the layer panel (streets, satellite, terrain, light, or dark),
+then use the checkboxes below it to turn any layer on or off, priority tiers, real school
+locations, sector labels, or the real terrain hillshade. To answer "show me only the schools in
+the most critical sectors," turn off the individual priority tier layers and the two "all schools"
+layers, and turn on only <b>Schools in Priority 1 Critical sectors only</b>, that is a real spatial
+join between the actual school coordinates and the actual sector polygons, not an approximation.
+The weighting scenario control in the top right switches which sectors count as Critical, since
+that depends on how much weight population gets, and the filtered school layer updates with it.
 </p>
-<div class="figure-block">{div(fig1, "map", include_js=True)}</div>
+<div class="figure-block">{leaflet_section}</div>
 <div class="section-note">
 Map geometry: real Burera District sector boundaries, clipped from a national administrative
-boundary dataset. Colour: Composite Weighted Accessibility Index (CWAI), lower and redder means
-more critical, higher and greener means better served. Markers: real primary and secondary school
-locations from the REB register, hover a marker to see the school's name.
+boundary dataset. Colour: priority tier by Composite Weighted Accessibility Index (CWAI), red is
+Priority 1 Critical, green is Priority 5 Adequate. Markers: real primary and secondary school
+locations from the REB register, click a marker or a sector for details, click a layer name in the
+panel to toggle it, and click the small square next to it to check or uncheck.
 </div>
 
 <h2>2. Ranked priority list</h2>
-<div class="figure-block">{div(fig2, "bar")}</div>
+<div class="figure-block">{div(fig2, "bar", include_js=True)}</div>
 
 <h2>3. How the ranking shifts once population is weighted in</h2>
 <p>
@@ -594,13 +598,15 @@ range and with the district's location in the Virunga volcanic highlands on the 
 <tr><td>Elevation</td><td>Real</td><td>National SRTM 30 m DEM, clipped to Burera District</td></tr>
 <tr><td>Population, area, school counts</td><td>Real, verified</td><td>Thesis Table 4.2 and Table 4.8, NISR 2022 Census and REB</td></tr>
 <tr><td>School point locations</td><td>Real</td><td>REB facility register, 81 primary schools, matching the thesis's Table 4.1 count exactly, and 59 secondary category schools (General Secondary 9-12 YBE, TVET, TTC)</td></tr>
+<tr><td>School to sector to tier matching</td><td>Real</td><td>A real spatial join (point in polygon) between the actual school coordinates and the actual sector polygons, computed with GeoPandas, not estimated</td></tr>
 <tr><td>Road network</td><td>Not available on this machine</td><td>Would come from RTDA or OpenStreetMap</td></tr>
 </table>
 <div class="limitation">
 The composite index itself still operates at the sector level, the same level as the thesis's own
-Combined Accessibility Score. The school markers on the map are real point locations, but there is
-no real road network yet, so this dashboard cannot compute true walking distance or travel time
-along actual roads and footpaths, only sector level aggregates and, in the underlying model files,
+Combined Accessibility Score. The school markers on the map are real point locations, and the
+"Schools in Priority 1 Critical sectors only" layer is a genuine spatial filter, but there is no
+real road network yet, so this dashboard cannot compute true walking distance or travel time along
+actual roads and footpaths, only sector level aggregates and, in the underlying model files,
 straight line and terrain cost distance from each real school. If a road network shapefile is
 supplied, this dashboard can be extended with a genuine point level service area layer, routed
 along real roads, to sit alongside the views shown here.
@@ -619,18 +625,24 @@ August 2026. Generated with Python, GeoPandas, rasterio, and Plotly.
 
 
 def main():
+    import prepare_leaflet_data
+    prepare_leaflet_data.main()
+
+    from leaflet_map import build_leaflet_section
+
     gdf, merged, with_indices, scenario_frames = load_geo_and_model()
     tiered_default = scenario_frames["AHP judgement, adopted (0.33 / 0.67)"]
 
-    fig1 = build_choropleth(gdf, scenario_frames)
+    terrain_uri, terrain_coords = build_terrain_overlay()
+    leaflet_section = build_leaflet_section(terrain_uri, terrain_coords)
+
     fig2 = build_ranked_bar(tiered_default)
     fig3 = build_rank_comparison(with_indices, tiered_default)
     fig4 = build_weight_sensitivity(load_sector_data())
     fig5 = build_population_projection(load_sector_data())
     terrain_b64, elev_min, elev_max = build_terrain_image_base64()
 
-    # only the first figure embeds plotly.js, the rest reuse it
-    html = build_page(fig1, fig2, fig3, fig4, fig5, terrain_b64, elev_min, elev_max)
+    html = build_page(leaflet_section, fig2, fig3, fig4, fig5, terrain_b64, elev_min, elev_max)
 
     out_path = os.path.join(HERE, "index.html")
     with open(out_path, "w", encoding="utf-8") as f:

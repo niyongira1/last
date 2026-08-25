@@ -44,14 +44,20 @@ section.
 
 ## What the dashboard does
 
-1. An interactive map of Burera District, real geography, classified into
-   the same five priority tiers used throughout the thesis (Critical, High,
-   Moderate, Below Average, Adequate), draped over the district's real
-   hillshaded terrain. Three buttons above the map let a viewer switch
-   between weighting scenarios, from equal weight on school density and
-   population, up to the strong population emphasis end of the plausible
-   AHP range, and see the map reclassify live. The legend itself is
-   clickable, click a tier to hide or show just that priority group.
+1. A full Leaflet map of Burera District with a real, working layer panel,
+   five switchable basemaps (OpenStreetMap streets, Esri satellite imagery,
+   OpenTopoMap terrain, CartoDB light, CartoDB dark), and a set of
+   independent overlay checkboxes: sector boundaries, sector labels, the
+   real terrain hillshade, each of the five priority tiers as its own
+   layer, all real primary schools, all real secondary schools, and a
+   dedicated layer showing only the schools that fall inside a Priority 1
+   Critical sector. That last layer is a genuine spatial join, computed
+   with GeoPandas between the real school coordinates and the real sector
+   polygons, not an approximation. A separate control in the top right
+   switches the weighting scenario, equal weight, the adopted AHP
+   judgement, or strong population emphasis, and the Critical layer
+   recomputes itself for whichever scenario is active. Click any sector or
+   school marker for its details.
 2. A ranked priority bar chart.
 3. A chart showing exactly how each sector's priority rank shifts once
    population is properly weighted in against the thesis's original area
